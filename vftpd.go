@@ -26,9 +26,14 @@ func ListenAndServe(ip string, port int) error {
 	}
 }
 
+func w(conn net.Conn, code int, message string) {
+	s := fmt.Sprintf("%d %s\r\n", code, message)
+	conn.Write([]byte(s))
+}
+
 func doService(conn net.Conn) {
 	defer conn.Close()
-	conn.Write([]byte("\220vftpd\r\n"))
+	w(conn, 220, "vftpd")
 	buf := make([]byte, 4096)
 
 	for {
