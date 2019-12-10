@@ -35,7 +35,7 @@ func doService(conn net.Conn) {
 	defer conn.Close()
 	w(conn, 220, "vftpd")
 	buf := make([]byte, 4096)
-
+	x := 0
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
@@ -43,5 +43,13 @@ func doService(conn net.Conn) {
 			return
 		}
 		log.Printf(">> %q\n", string(buf[:n]))
+		if x == 0 {
+			w(conn, 331, "user name ok, password required")
+		}
+		if x == 1 {
+			w(conn, 230, "password ok, continue")
+		}
+
+		x++
 	}
 }
