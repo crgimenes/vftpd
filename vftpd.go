@@ -27,12 +27,16 @@ func ListenAndServe(ip string, port int) error {
 }
 
 func doService(conn net.Conn) {
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		log.Errorln("error reading from client", err.Error())
-		return
-	}
-	log.Println("passwd", string(buf[:n]))
+	defer conn.Close()
+	conn.Write([]byte("\220vftpd\r\n"))
+	buf := make([]byte, 4096)
 
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			log.Errorln("error reading from client", err.Error())
+			return
+		}
+		log.Printf(">> %q\n", string(buf[:n]))
+	}
 }
