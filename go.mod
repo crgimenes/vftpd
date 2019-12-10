@@ -1,4 +1,4 @@
-module vftp
+module vftpd
 
 go 1.13
 
