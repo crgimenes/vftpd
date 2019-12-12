@@ -1,7 +1,6 @@
 package vftpd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,8 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type section struct {
+	username string
+	password string
+}
+
 func ListenAndServe(ip string, port int) error {
-	log.Println("vftpd listen and serve")
+	log.Println("vftpd listen at port", port)
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		return err
@@ -29,9 +33,9 @@ func ListenAndServe(ip string, port int) error {
 	}
 }
 
-func w(conn net.Conn, code int, message string) {
+func write(w io.Writer, code int, message string) {
 	s := fmt.Sprintf("%d %s\r\n", code, message)
-	conn.Write([]byte(s))
+	w.Write([]byte(s))
 }
 
 func closer(c io.Closer) {
@@ -41,18 +45,43 @@ func closer(c io.Closer) {
 	}
 }
 
-func run(cmd string) error {
-	log.Printf(">> %q\n", s)
-	p := strings.Split(s, " ")
-	if len(p) == 0 {
-		return errors.New("error parsing command")
-	}
+func run(w io.Writer, cmd string, s *section) error {
+	cmd = strings.TrimSpace(cmd)
+	log.Printf(">> %q\n", cmd)
+	p := strings.Split(cmd, " ")
+	c := strings.ToLower(p[0])
 
+	switch c {
+	case "", "noop":
+		// noop
+	case "quit", "bye", ":q":
+		write(w, 221, "have a nice day")
+		return io.EOF
+	case "syst":
+		write(w, 215, "UNIX Type: L8.")
+	case "user":
+		if len(p) != 2 {
+			write(w, 550, "format error")
+			break
+		}
+		s.username = p[1]
+		write(w, 331, "Username ok, send password.")
+	case "pass":
+		s.password = cmd[5:]
+		//TODO: validate password
+		log.Printf(">>%q, %q\n", s.username, s.password)
+		write(w, 230, " Login successful.")
+		break
+	default:
+		write(w, 550, "not supported")
+	}
+	return nil
 }
 
 func doService(conn net.Conn) {
 	defer closer(conn)
-	w(conn, 220, "vftpd")
+	s := &section{}
+	write(conn, 220, "vftpd")
 	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
@@ -61,7 +90,10 @@ func doService(conn net.Conn) {
 			return
 		}
 		cmd := string(buf[:n])
-		err = run(cmd)
+		err = run(conn, cmd, s)
+		if err == io.EOF {
+			return
+		}
 		if err != nil {
 			log.Errorln(err)
 			return
