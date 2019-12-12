@@ -15,6 +15,7 @@ type section struct {
 	username string
 	password string
 	localIP  string
+	dataConn net.Conn
 }
 
 func ListenAndServe(ip string, port int) error {
@@ -83,11 +84,13 @@ func run(w io.Writer, cmd string, s *section) error {
 		//TODO: add ipv6 support?
 		addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
 		if err != nil {
+			log.Errorln(err)
 			write(w, 550, "resolve TCP error: "+err.Error())
 			return nil
 		}
 		li, err := net.ListenTCP("tcp", addr)
 		if err != nil {
+			log.Errorln(err)
 			write(w, 550, "listen TCP error: "+err.Error())
 			return nil
 		}
@@ -97,24 +100,45 @@ func run(w io.Writer, cmd string, s *section) error {
 		msg := "Entering passive mode (" + ip + "," + h + "," + l + ")"
 		log.Println(msg)
 		write(w, 227, msg)
+
+		/*
+		   227 Entering Passive Mode (127,0,0,1,133,62).
+		   150 Here comes the directory listing.
+		   drwxr-xr-x    8 1000     1000         4096 Dec 10 15:27 Projects
+		   drwx------    2 1000     1000         4096 Dec 09 14:48 Teste
+		   drwxr-xr-x    2 1000     1000         4096 Nov 17 11:50 bin
+		   -rw-r--r--    1 1000     1000         1201 Nov 17 11:27 crg.eti.br
+		   drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
+		   226 Directory send OK.
+		*/
+
 		go (func() {
-			dataConn, err := li.Accept()
+			s.dataConn, err = li.Accept()
 			if err != nil {
 				// TODO: handle error
 				log.Errorln(err)
 			}
 			// TODO: handle data
-			closer(dataConn)
+			//closer(dataConn)
 		})()
 	case "type":
 		write(w, 200, "set type to:"+p[1])
 
-		//case "list":
+	case "list":
+		write(w, 150, "Here comes the directory listing.")
+		s.dataConn.Write([]byte(`drwxr-xr-x    8 1000     1000         4096 Dec 10 15:27 Projects
+drwx------    2 1000     1000         4096 Dec 09 14:48 Teste
+drwxr-xr-x    2 1000     1000         4096 Nov 17 11:50 bin
+-rw-r--r--    1 1000     1000         1201 Nov 17 11:27 crg.eti.br
+drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
+`))
+		write(w, 226, "Directory send OK.")
+		closer(s.dataConn)
 		//case "eprt":
 		//case "port":
-		//
+
 	default:
-		write(w, 550, "not supported")
+		write(w, 500, "not supported")
 	}
 	return nil
 }
