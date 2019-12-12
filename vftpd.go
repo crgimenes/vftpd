@@ -1,8 +1,11 @@
 package vftpd
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -31,25 +34,37 @@ func w(conn net.Conn, code int, message string) {
 	conn.Write([]byte(s))
 }
 
+func closer(c io.Closer) {
+	err := c.Close()
+	if err != nil {
+		log.Errorln(err)
+	}
+}
+
+func run(cmd string) error {
+	log.Printf(">> %q\n", s)
+	p := strings.Split(s, " ")
+	if len(p) == 0 {
+		return errors.New("error parsing command")
+	}
+
+}
+
 func doService(conn net.Conn) {
-	defer conn.Close()
+	defer closer(conn)
 	w(conn, 220, "vftpd")
-	buf := make([]byte, 4096)
-	x := 0
+	buf := make([]byte, 512)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			log.Errorln("error reading from client", err.Error())
 			return
 		}
-		log.Printf(">> %q\n", string(buf[:n]))
-		if x == 0 {
-			w(conn, 331, "user name ok, password required")
+		cmd := string(buf[:n])
+		err = run(cmd)
+		if err != nil {
+			log.Errorln(err)
+			return
 		}
-		if x == 1 {
-			w(conn, 230, "password ok, continue")
-		}
-
-		x++
 	}
 }
