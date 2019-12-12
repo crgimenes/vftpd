@@ -3,7 +3,9 @@ package vftpd
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -12,6 +14,7 @@ import (
 type section struct {
 	username string
 	password string
+	localIP  string
 }
 
 func ListenAndServe(ip string, port int) error {
@@ -70,8 +73,46 @@ func run(w io.Writer, cmd string, s *section) error {
 		s.password = cmd[5:]
 		//TODO: validate password
 		log.Printf(">>%q, %q\n", s.username, s.password)
-		write(w, 230, " Login successful.")
-		break
+		write(w, 230, "Login successful.")
+	case "pwd":
+		write(w, 257, `"/" is the current directory.`)
+	case "pasv":
+		//s.mode = "passive"
+		port := 50000 + rand.Intn(51009-50000)
+		//TODO: try again if port is in use
+		//TODO: add ipv6 support?
+		addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
+		if err != nil {
+			write(w, 550, "resolve TCP error: "+err.Error())
+			return nil
+		}
+		li, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			write(w, 550, "listen TCP error: "+err.Error())
+			return nil
+		}
+		ip := strings.Join(strings.Split(s.localIP, "."), ",")
+		h := strconv.Itoa(port >> 8)
+		l := strconv.Itoa(port % 256)
+		msg := "Entering passive mode (" + ip + "," + h + "," + l + ")"
+		log.Println(msg)
+		write(w, 227, msg)
+		go (func() {
+			dataConn, err := li.Accept()
+			if err != nil {
+				// TODO: handle error
+				log.Errorln(err)
+			}
+			// TODO: handle data
+			closer(dataConn)
+		})()
+	case "type":
+		write(w, 200, "set type to:"+p[1])
+
+		//case "list":
+		//case "eprt":
+		//case "port":
+		//
 	default:
 		write(w, 550, "not supported")
 	}
@@ -83,6 +124,10 @@ func doService(conn net.Conn) {
 	s := &section{}
 	write(conn, 220, "vftpd")
 	buf := make([]byte, 512)
+	localAddr := conn.LocalAddr()
+	log.Println(">>", localAddr.String())
+	a := strings.Split(localAddr.String(), ":")
+	s.localIP = a[0]
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
