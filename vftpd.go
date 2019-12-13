@@ -174,6 +174,10 @@ func doService(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
+			if err == io.EOF {
+				log.Println("connection closed")
+				return
+			}
 			log.Errorln("error reading from client", err.Error())
 			return
 		}
