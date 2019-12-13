@@ -3,6 +3,7 @@ package vftpd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"strconv"
@@ -15,6 +16,7 @@ type section struct {
 	username string
 	password string
 	localIP  string
+	fileName string
 	dataConn net.Conn
 }
 
@@ -126,6 +128,7 @@ func run(w io.Writer, cmd string, s *section) error {
 
 	case "list":
 		write(w, 150, "Here comes the directory listing.")
+		// TODO: implement list and remove fake files
 		s.dataConn.Write([]byte(`drwxr-xr-x    8 1000     1000         4096 Dec 10 15:27 Projects
 drwx------    2 1000     1000         4096 Dec 09 14:48 Teste
 drwxr-xr-x    2 1000     1000         4096 Nov 17 11:50 bin
@@ -136,7 +139,23 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 		closer(s.dataConn)
 		//case "eprt":
 		//case "port":
+	case "stor":
+		s.fileName = p[1]
+		log.Println("storing file", s.fileName)
+		defer closer(s.dataConn)
 
+		write(w, 125, "Data connection already opened; transfer starting.")
+		b, err := ioutil.ReadAll(s.dataConn)
+		if err != nil {
+			log.Errorln("error store file", s.fileName, err)
+			break
+		}
+		log.Println("file size:", len(b))
+		fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+		fmt.Println(string(b))
+		fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+
+		write(w, 250, "Requested file action okay, completed.")
 	default:
 		write(w, 500, "not supported")
 	}
