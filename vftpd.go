@@ -3,9 +3,9 @@ package vftpd
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
@@ -145,15 +145,22 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 		defer closer(s.dataConn)
 
 		write(w, 125, "Data connection already opened; transfer starting.")
-		b, err := ioutil.ReadAll(s.dataConn)
+
+		wo, err := os.Create("file_" + s.fileName)
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)
 			break
 		}
-		log.Println("file size:", len(b))
-		fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
-		fmt.Println(string(b))
-		fmt.Println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+		defer closer(wo)
+		n, err := io.Copy(wo, s.dataConn)
+		if err != nil {
+			log.Errorln("error store file", s.fileName, err)
+		}
+		log.Printf("copied %v bytes\n", n)
+		err = wo.Sync()
+		if err != nil {
+			log.Errorln("error store file", s.fileName, err)
+		}
 
 		write(w, 250, "Requested file action okay, completed.")
 	default:
