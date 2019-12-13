@@ -3,6 +3,7 @@ package vftpd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -18,6 +19,10 @@ type section struct {
 	localIP  string
 	fileName string
 	dataConn net.Conn
+}
+
+var FileUploaded = func(fileName, tempFile string) {
+	log.Println(">>>", fileName, "-", tempFile)
 }
 
 func ListenAndServe(ip string, port int) error {
@@ -146,23 +151,28 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 
 		write(w, 125, "Data connection already opened; transfer starting.")
 
-		wo, err := os.Create("file_" + s.fileName)
+		o, err := ioutil.TempFile("", "prefix")
+		//wo, err := os.Create("file_" + s.fileName)
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)
 			break
 		}
-		defer closer(wo)
-		n, err := io.Copy(wo, s.dataConn)
+		defer closer(o)
+		defer os.Remove(o.Name())
+		n, err := io.Copy(o, s.dataConn)
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)
 		}
 		log.Printf("copied %v bytes\n", n)
-		err = wo.Sync()
+		err = o.Sync()
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)
 		}
-
 		write(w, 250, "Requested file action okay, completed.")
+		FileUploaded(
+			s.fileName,
+			o.Name())
+
 	default:
 		write(w, 500, "not supported")
 	}
