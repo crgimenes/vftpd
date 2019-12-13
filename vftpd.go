@@ -151,7 +151,7 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 
 		write(w, 125, "Data connection already opened; transfer starting.")
 
-		o, err := ioutil.TempFile("", "prefix")
+		o, err := ioutil.TempFile("", "ftp_")
 		//wo, err := os.Create("file_" + s.fileName)
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)
