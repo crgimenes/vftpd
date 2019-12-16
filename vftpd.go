@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 
@@ -84,6 +83,8 @@ func run(w io.Writer, cmd string, s *section) error {
 		write(w, 230, "Login successful.")
 	case "pwd":
 		write(w, 257, `"/" is the current directory.`)
+	case "cwd":
+		write(w, 250, `"/" is the current directory.`)
 	case "pasv":
 		//s.mode = "passive"
 		port := 50000 + rand.Intn(51009-50000)
@@ -158,7 +159,7 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 			break
 		}
 		defer closer(o)
-		defer os.Remove(o.Name())
+		//defer os.Remove(o.Name())
 		n, err := io.Copy(o, s.dataConn)
 		if err != nil {
 			log.Errorln("error store file", s.fileName, err)

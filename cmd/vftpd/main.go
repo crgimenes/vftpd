@@ -12,7 +12,7 @@ import (
 func main() {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 	log.SetOutput(ansicolor.NewAnsiColorWriter(os.Stdout))
-	err := vftpd.ListenAndServe("0.0.0.0", 9090)
+	err := vftpd.ListenAndServe("0.0.0.0", 9000)
 	if err != nil {
 		log.Errorln(err)
 	}
