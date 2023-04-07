@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net"
 	"strconv"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type section struct {
@@ -33,7 +32,7 @@ func ListenAndServe(ip string, port int) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Errorln("error accepting", err.Error())
+			log.Println("error accepting", err.Error())
 			continue
 		}
 		log.Println(
@@ -51,7 +50,7 @@ func write(w io.Writer, code int, message string) {
 func closer(c io.Closer) {
 	err := c.Close()
 	if err != nil {
-		log.Errorln(err)
+		log.Println("error closing", err.Error())
 	}
 }
 
@@ -92,13 +91,13 @@ func run(w io.Writer, cmd string, s *section) error {
 		//TODO: add ipv6 support?
 		addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:"+fmt.Sprintf("%d", port))
 		if err != nil {
-			log.Errorln(err)
+			log.Println(err)
 			write(w, 550, "resolve TCP error: "+err.Error())
 			return nil
 		}
 		li, err := net.ListenTCP("tcp", addr)
 		if err != nil {
-			log.Errorln(err)
+			log.Println(err)
 			write(w, 550, "listen TCP error: "+err.Error())
 			return nil
 		}
@@ -124,7 +123,7 @@ func run(w io.Writer, cmd string, s *section) error {
 			s.dataConn, err = li.Accept()
 			if err != nil {
 				// TODO: handle error
-				log.Errorln(err)
+				log.Println(err)
 			}
 			// TODO: handle data
 			//closer(dataConn)
@@ -155,19 +154,19 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 		o, err := ioutil.TempFile("", "ftp_")
 		//wo, err := os.Create("file_" + s.fileName)
 		if err != nil {
-			log.Errorln("error store file", s.fileName, err)
+			log.Println("error store file", s.fileName, err)
 			break
 		}
 		defer closer(o)
 		//defer os.Remove(o.Name())
 		n, err := io.Copy(o, s.dataConn)
 		if err != nil {
-			log.Errorln("error store file", s.fileName, err)
+			log.Println("error store file", s.fileName, err)
 		}
 		log.Printf("copied %v bytes\n", n)
 		err = o.Sync()
 		if err != nil {
-			log.Errorln("error store file", s.fileName, err)
+			log.Println("error store file", s.fileName, err)
 		}
 		write(w, 250, "Requested file action okay, completed.")
 		FileUploaded(
@@ -196,7 +195,7 @@ func doService(conn net.Conn) {
 				log.Println("connection closed")
 				return
 			}
-			log.Errorln("error reading from client", err.Error())
+			log.Println("error reading from client", err.Error())
 			return
 		}
 		cmd := string(buf[:n])
@@ -205,7 +204,7 @@ func doService(conn net.Conn) {
 			return
 		}
 		if err != nil {
-			log.Errorln(err)
+			log.Println(err)
 			return
 		}
 	}
