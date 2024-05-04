@@ -3,10 +3,10 @@ package vftpd
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -151,7 +151,7 @@ drwxr-xr-x    5 1000     1000         4096 Nov 16 12:30 go
 
 		write(w, 125, "Data connection already opened; transfer starting.")
 
-		o, err := ioutil.TempFile("", "ftp_")
+		o, err := os.CreateTemp("", "ftp_")
 		//wo, err := os.Create("file_" + s.fileName)
 		if err != nil {
 			log.Println("error store file", s.fileName, err)
